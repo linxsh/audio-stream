@@ -1,35 +1,19 @@
 from pyaudio import PyAudio,paInt16
 import numpy as np
-import wave
-
-framerate=16000
-channel=1
-samplewidth=2
-samplepoints=400
-sampleshifts=160
 
 class AudioRecord(object):
-    def __init__(self):
+    def __init__(self, sample_rate = 16000, sample_channel = 1, sample_width = 2, sample_time = 0.025):
+        samplebuffer=int(round(sample_rate * sample_channel * sample_width * sample_time))
         pa=PyAudio()
-        self.stream=pa.open(format = paInt16, channels = channel, rate=framerate, input=True, frames_per_buffer=samplepoints)
-        self.save_audio_array=np.zeros(0, dtype=np.short)
+        self.stream=pa.open(format = paInt16, channels=sample_channel, rate=sample_rate, input=True,
+            frames_per_buffer=samplebuffer)
+        self.samplepoints=int(round(sample_rate*sample_time))
 
     def read_frame(self):
-        if np.size(self.save_audio_array) < samplepoints:
-            audio_string=self.stream.read(samplepoints)
-            audio_array=np.fromstring(audio_string, dtype=np.short)
-            self.save_audio_array=np.append(self.save_audio_array, audio_array)
-            #print("read %d"%(np.size(audio_array)))
-        read_audio_array = self.save_audio_array[:samplepoints]
-        self.save_audio_array=self.save_audio_array[sampleshifts:]
-        #print("write %d, res: %d"%(np.size(read_audio_array), np.size(self.save_audio_array)))
-        return read_audio_array
+        audio_string=self.stream.read(self.samplepoints)
+        audio_array=np.fromstring(audio_string, dtype=np.short)
+        return audio_array
 
-    def save_to_file(self, filename=None, data=np.zeros(0, dtype=np.short)):
-        if filename is not None:
-            wavefile=wave.open(filename,'wb')
-            wavefile.setnchannels(channel)
-            wavefile.setsampwidth(samplewidth)
-            wavefile.setframerate(framerate)
-            wavefile.writeframes(b"".join(data.tostring()))
-            wavefile.close()
+    def write_frame(self, audio_array):
+        audio_string=audio_array.to_string()
+        self.stream.write(audio_string)
