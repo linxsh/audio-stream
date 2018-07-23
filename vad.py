@@ -1,17 +1,17 @@
 import numpy as np
 
 short_value = 32768.0
-low_energy_gate  = 1.0e-5
-low_energy_frame_cnt = 60
-low_energy_weight = 5
-high_energy_gate = 1.0e-4
+low_energy_gate  = 1.0
+low_energy_frame_cnt = 100
+low_energy_weight = 3
 high_energy_time = 10
 store_frame_cnt = 100
 
 def vad_energy(frame_array):
     if np.size(frame_array) > 0:
         normalize_data = frame_array / short_value
-        energy = np.mean(normalize_data ** 2)
+        average_data = np.mean(normalize_data)
+        energy = np.mean((normalize_data - average_data) ** 2)
     else:
         energy = 0.0
     return energy
@@ -30,7 +30,7 @@ def update_energy_gate(energy_array, energy_level):
                     update_low_energy_gate  = np.mean(energy_array[:low_energy_frame_cnt])
                     update_low_energy_gate *= low_energy_weight
                     update_high_energy_gate = update_low_energy_gate * high_energy_time
-                    #print "=====>", update_low_energy_gate, update_high_energy_gate
+                    print "=====>", update_low_energy_gate, update_high_energy_gate
                     break
             else :
                 break
@@ -52,7 +52,7 @@ def get_active_state(active, energy_level) :
                 frame_cnt += 1
                 if frame_cnt >= 4 :
                     break
-        if active_score >= 7 :
+        if active_score >= 5 :
             active_state = 1
     else :
         active_score = 60
@@ -80,7 +80,7 @@ class AudioVad(object):
         self.energy_level  = np.zeros(0, dtype=np.short)
         self.active_state  = 0
         self.low_energy_gate  = low_energy_gate
-        self.high_energy_gate = high_energy_gate
+        self.high_energy_gate = low_energy_gate
         self.sample_length = int(round(sample_rate * sample_time))
         self.sample_shifts = int(round(sample_rate * sample_shift))
 
@@ -108,7 +108,7 @@ class AudioVad(object):
             self.low_energy_gate = update_low_energy_gate
             self.high_energy_gate = update_high_energy_gate
         #if self.active_state == 1 :
-        #    print self.energy_level, self.active_state, self.low_energy_gate, self.high_energy_gate
+        #print self.energy_level, self.active_state, self.low_energy_gate, self.high_energy_gate, energy
 
     def get_vad_state(self) :
         return self.active_state
