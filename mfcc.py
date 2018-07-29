@@ -5,7 +5,7 @@ from scipy.fftpack import dct
 pre_emphasis = 0.97
 fft_length = 512
 mel_filter_size = 40
-mfcc_cpes_num = 12
+mfcc_cpes_num = 20
 log_fbank_count = mfcc_count = 20
 
 class AudioMFCC(object):
@@ -66,5 +66,11 @@ class AudioMFCC(object):
         mfcc = self.mfcc
         self.mfcc = np.zeros((0, mfcc_cpes_num), dtype=np.float)
         return log_fbank, mfcc
+
+    def update_mfcc(self):
+        self.audio_sample_point = 0
+        self.audio_array = np.zeros(0, dtype=np.short)
+        self.log_fbank = np.zeros((0, mel_filter_size), dtype=np.float)
+        self.mfcc = np.zeros((0, mfcc_cpes_num), dtype=np.float)
 
 
