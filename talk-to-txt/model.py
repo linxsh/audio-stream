@@ -1,6 +1,8 @@
 # coding: utf-8
 import tensorflow as tf
 import numpy as np
+import time
+from batches import AudioBatch
 
 #对优化类进行一些自定义操作。
 class MaxPropOptimizer(tf.train.Optimizer):
@@ -52,21 +54,21 @@ class AudioResNet(object):
             self.seq_len = tf.reduce_sum(tf.cast(tf.not_equal(tf.reduce_sum(self.inputs, reduction_indices = 2), 0.), tf.int32), reduction_indices = 1)
 
     def build_network(self): #定义神经网络
-        conv1d_index = 0
-        aconv1d_index = 0
+        self.conv1d_index = 0
+        self.aconv1d_index = 0
 
-        def conv1d_layer(input_tensor,size,dim,activation,scale,bias):
-            with tf.variable_scope('conv1d_'+str(conv1d_index)):
-                W= tf.get_variable('W', (size, input_tensor.get_shape().as_list()[-1], dim), dtype=tf.float32, initializer=tf.random_uniform_initializer(minval=-scale, maxval=scale))
+        def conv1d_layer(input_tensor, size, dim, activation, scale,bias):
+            with tf.variable_scope('conv1d_'+ str(self.conv1d_index)):
+                W = tf.get_variable('W', (size, input_tensor.get_shape().as_list()[-1], dim), dtype=tf.float32, initializer=tf.random_uniform_initializer(minval=-scale, maxval=scale))
                 if bias:
-                    b= tf.get_variable('b',[dim],dtype=tf.float32,initializer=tf.constant_initializer(0))
-                out = tf.nn.conv1d(input_tensor,  W, stride=1, padding='SAME')#输出与输入同纬度
+                    b = tf.get_variable('b', [dim], dtype = tf.float32, initializer = tf.constant_initializer(0))
+                out = tf.nn.conv1d(input_tensor, W, stride = 1, padding = 'SAME')#输出与输入同纬度
                 if not bias:
-                    beta = tf.get_variable('beta', dim, dtype=tf.float32, initializer=tf.constant_initializer(0))
-                    gamma = tf.get_variable('gamma', dim, dtype=tf.float32, initializer=tf.constant_initializer(1))
-                    mean_running = tf.get_variable('mean', dim, dtype=tf.float32, initializer=tf.constant_initializer(0))#均值
-                    variance_running = tf.get_variable('variance', dim, dtype=tf.float32, initializer=tf.constant_initializer(1))#方差
-                    mean, variance = tf.nn.moments(out, axes=range(len(out.get_shape()) - 1))
+                    beta  = tf.get_variable('beta',  dim, dtype = tf.float32, initializer = tf.constant_initializer(0))
+                    gamma = tf.get_variable('gamma', dim, dtype = tf.float32, initializer = tf.constant_initializer(1))
+                    mean_running     = tf.get_variable('mean',     dim, dtype = tf.float32, initializer = tf.constant_initializer(0))#均值
+                    variance_running = tf.get_variable('variance', dim, dtype = tf.float32, initializer = tf.constant_initializer(1))#方差
+                    mean, variance   = tf.nn.moments(out, axes = range(len(out.get_shape()) - 1))
                     def update_running_stat(): #可以根据矩（均值和方差）来做normalize，见tf.nn.moments
                         decay =0.99 #mean_running、variance_running更新操作
                         update_op = [mean_running.assign(mean_running * decay + mean * (1 - decay)), variance_running.assign(variance_running * decay + variance * (1 - decay))]
@@ -79,11 +81,11 @@ class AudioResNet(object):
                 if activation == 'sigmoid':
                     out = tf.nn.sigmoid(out)
 
-                conv1d_index += 1
+                self.conv1d_index += 1
                 return out
 
         def aconv1d_layer(input_tensor, size, rate, activation, scale, bias):
-            with tf.variable_scope('aconv1d_' + str(aconv1d_index)):
+            with tf.variable_scope('aconv1d_' + str(self.aconv1d_index)):
                 shape = input_tensor.get_shape().as_list()#以list的形式返回tensor的shape
                 W = tf.get_variable('W', (1, size, shape[-1], shape[-1]), dtype=tf.float32, initializer=tf.random_uniform_initializer(minval=-scale, maxval=scale))
                 if bias:
@@ -111,31 +113,31 @@ class AudioResNet(object):
                 if activation == 'sigmoid':
                     out = tf.nn.sigmoid(out)
 
-                aconv1d_index += 1
+                self.aconv1d_index += 1
                 return out
 
         def residual_block(input_sensor, size, rate): # skip connections
             conv_filter = aconv1d_layer(input_sensor, size=size, rate=rate, activation='tanh', scale=0.03, bias=False)
             conv_gate = aconv1d_layer(input_sensor, size=size, rate=rate, activation='sigmoid', scale=0.03, bias=False)
             out = conv_filter * conv_gate
-            out = conv1d_layer(out, size = 1, dim = n_dim, activation = 'tanh', scale = 0.08, bias = False)
+            out = conv1d_layer(out, size = 1, dim = self.n_dim, activation = 'tanh', scale = 0.08, bias = False)
             return out + input_sensor, out
 
         out = conv1d_layer(input_tensor = self.inputs, size = 1, dim = self.n_dim, activation = 'tanh', scale = 0.14, bias = False) #卷积层输出
         skip = 0
-        for _ in range(n_blocks):
+        for _ in range(self.n_blocks):
             for r in [1, 2, 4, 8, 16]:
-                out, s = residual_block(out, size=7, rate=r)#根据采样频率发生变化
+                out, s = residual_block(out, size = 7, rate = r)#根据采样频率发生变化
                 skip += s
 
         #两层卷积
-        self.logit = conv1d_layer(skip,  size = 1, dim = skip.get_shape().as_list()[-1], activation = 'tanh', scale = 0.08, bias = False)
-        self.logit = conv1d_layer(self.logit, size = 1, dim = words_size, activation = None, scale = 0.04, bias = True)
+        logit = conv1d_layer(skip,  size = 1, dim = skip.get_shape().as_list()[-1], activation = 'tanh', scale = 0.08, bias = False)
+        self.logit = conv1d_layer(logit, size = 1, dim = 128, activation = None, scale = 0.04, bias = True)
 
     def build_loss(self): # CTC loss
         indices = tf.where(tf.not_equal(tf.cast(self.targets, tf.float32), 0.))
-        target = tf.SparseTensor(indices = indices, values = tf.gather_nd(self.targets, indices) - 1, shape = tf.cast(tf.shape(self.targets), tf.int64))
-        self.loss = tf.nn.ctc_loss(self.logit, target, self.seq_len, time_major = False)
+        target  = tf.SparseTensor(indices = indices, values = tf.gather_nd(self.targets, indices) - 1, dense_shape = tf.cast(tf.shape(self.targets), tf.int64))
+        self.loss = tf.nn.ctc_loss(target, self.logit, self.seq_len, time_major = False)
 
     def build_optimizer(self):
         self.lr = tf.Variable(0.001, dtype = tf.float32, trainable = False)

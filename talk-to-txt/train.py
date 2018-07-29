@@ -1,13 +1,11 @@
 #coding:utf-8
 import tensorflow as tf
 import numpy as np
-from batches import AudioBatch
+from model import AudioResNet
 
 train_folder = './train'
 train_words  = './train/word.txt'
 
 if __name__ == '__main__':
-    batches = AudioBatch(train_folder, train_words)
-    mfcc_batch, label_batch = batches.get_batches(16)
-    print mfcc_batch
-    print label_batch
+    model = AudioResNet()
+    model.train(folder = train_folder, text = train_words, batch_size = 16)

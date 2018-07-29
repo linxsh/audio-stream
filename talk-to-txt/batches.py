@@ -60,16 +60,16 @@ class AudioBatch(object):
         for label in labels:
             all_words += [word for word in label]
         counter = Counter(all_words)
-        count_pairs =sorted(counter.items(),key=lambda x: -x[1])
-        words,_=zip(*count_pairs)
-        words_size =len(words)#词汇表尺寸
-        print '词汇表大小:', words_size
+        count_pairs = sorted(counter.items(),key=lambda x: -x[1])
+        words,_= zip(*count_pairs)
+        self.words_size = len(words)#词汇表尺寸
+        print '词汇表大小:', self.words_size
 
         #词汇映射成id表示
         word_num_map = dict(zip(words,range(len(words))))
         to_num = lambda word: word_num_map.get(word,len(words))#词汇映射函数
-        labels_vector =[list(map(to_num,label)) for label in labels]
-        self.label_max_len= np.max([len(label) for label in labels_vector])#获取最长字数
+        labels_vector = [list(map(to_num,label)) for label in labels]
+        self.label_max_len = np.max([len(label) for label in labels_vector])#获取最长字数
         print '最长句子的字数:', self.label_max_len
 
         for i in range(len(files)):
@@ -78,7 +78,6 @@ class AudioBatch(object):
             mfcc = np.transpose(librosa.feature.mfcc(wav, sr), [1, 0])#转置特征参数
             self.mfcc_batches.append(mfcc.tolist())
             self.label_batches.append(labels_vector[i])
-            print i, mfcc.shape
             #librosa.feature.mfcc特征提取函数
             if len(mfcc) > self.mfcc_max_len :
                 self.mfcc_max_len = len(mfcc)
@@ -104,3 +103,6 @@ class AudioBatch(object):
 
     def get_n_batch(self):
         return self.n_batch
+
+    def get_word_size(self):
+        return self.words_size
