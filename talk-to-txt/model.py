@@ -2,6 +2,7 @@
 import tensorflow as tf
 import numpy as np
 import time
+import os
 from batches import AudioBatch
 
 #对优化类进行一些自定义操作。
@@ -146,12 +147,12 @@ class AudioResNet(object):
         gradient = optimizer.compute_gradients(self.loss, var_list = var_list)
         self.optimizer_op = optimizer.apply_gradients(gradient)
 
-    def train(self, folder, text, batch_size, saver_folder = './speech.module'):
+    def train(self, folder, text, batch_size, saver_folder = './model'):
         print "开始训练:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         audio_batch = AudioBatch(folder, text)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())#初始化变量
-            for epoch in range(16):
+            for epoch in range(10000):
                 print "第%d次循环迭代: %s" % (epoch, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
                 sess.run(tf.assign(self.lr, 0.001 * (0.97 ** epoch)))
                 audio_batch.update_batches()
@@ -161,11 +162,11 @@ class AudioResNet(object):
                     print epoch, batch, train_loss
 
                 if epoch % 5 == 0:
-                    self.saver.save(sess, saver_folder, global_step = epoch)
+                    self.saver.save(sess, os.path.join(saver_folder, 'speech.model'), global_step = epoch)
                     print "第%d次模型保存结果: %s" % (epoch, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         print "结束训练时刻:",time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    def sample(self, mfcc, saver_folder = './speech.module'):
+    def sample(self, mfcc, saver_folder = './model'):
         mfcc = np.transpose(np.expand_dims(mfcc, axis=0), [0, 2, 1])
 
         with tf.Session() as sess:
@@ -173,6 +174,6 @@ class AudioResNet(object):
 
             decoded = tf.transpose(self.logit, perm=[1, 0, 2])
             decoded, _ = tf.nn.ctc_beam_search_decoder(decoded, self.seq_len, merge_repeated = False)
-            predict = tf.sparse_to_dense(decoded[0].indices, decoded[0].shape, decoded[0].values) + 1
+            predict = tf.sparse_to_dense(decoded[0].indices, decoded[0].dense_shape, decoded[0].values) + 1
             output = sess.run(decoded, feed_dict={self.inputs: mfcc})
             print(output)

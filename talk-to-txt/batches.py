@@ -50,8 +50,8 @@ class AudioBatch(object):
         self.mfcc_max_len   = 0
         self.label_max_len  = 0
         wav_files = get_wave_files(folder)#获取文件名列表
-        self.n_batch = len(wav_files)//self.batch_size
         files,labels = get_wav_label(text, wav_files)#得到标签和对应的语音文件
+        self.n_batch = len(files)//self.batch_size
         print "加载训练样本:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         print "样本数:", len(files)
 
@@ -81,6 +81,7 @@ class AudioBatch(object):
             #librosa.feature.mfcc特征提取函数
             if len(mfcc) > self.mfcc_max_len :
                 self.mfcc_max_len = len(mfcc)
+            print i, files[i]
         print "最长的语音:", self.mfcc_max_len
 
     def get_batches(self, batch_size):
