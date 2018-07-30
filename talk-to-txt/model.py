@@ -132,7 +132,7 @@ class AudioResNet(object):
 
         #两层卷积
         logit = conv1d_layer(skip,  size = 1, dim = skip.get_shape().as_list()[-1], activation = 'tanh', scale = 0.08, bias = False)
-        self.logit = conv1d_layer(logit, size = 1, dim = 128, activation = None, scale = 0.04, bias = True)
+        self.logit = conv1d_layer(logit, size = 1, dim = self.n_dim, activation = None, scale = 0.04, bias = True)
 
     def build_loss(self): # CTC loss
         indices = tf.where(tf.not_equal(tf.cast(self.targets, tf.float32), 0.))
@@ -146,7 +146,7 @@ class AudioResNet(object):
         gradient = optimizer.compute_gradients(self.loss, var_list = var_list)
         self.optimizer_op = optimizer.apply_gradients(gradient)
 
-    def train(self, folder, text, batch_size):
+    def train(self, folder, text, batch_size, saver_folder = './speech.module'):
         print "开始训练:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         audio_batch = AudioBatch(folder, text)
         with tf.Session() as sess:
@@ -161,15 +161,15 @@ class AudioResNet(object):
                     print epoch, batch, train_loss
 
                 if epoch % 5 == 0:
-                    self.saver.save(sess, './speech.module', global_step = epoch)
+                    self.saver.save(sess, saver_folder, global_step = epoch)
                     print "第%d次模型保存结果: %s" % (epoch, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         print "结束训练时刻:",time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    def sample(self, mfcc):
+    def sample(self, mfcc, saver_folder = './speech.module'):
         mfcc = np.transpose(np.expand_dims(mfcc, axis=0), [0, 2, 1])
 
         with tf.Session() as sess:
-            self.saver.restore(sess, tf.train.latest_checkpoint('.'))
+            self.saver.restore(sess, tf.train.latest_checkpoint(saver_folder))
 
             decoded = tf.transpose(self.logit, perm=[1, 0, 2])
             decoded, _ = tf.nn.ctc_beam_search_decoder(decoded, self.seq_len, merge_repeated = False)
