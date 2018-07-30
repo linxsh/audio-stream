@@ -1,4 +1,4 @@
-from record import AudioRecord
+from stream import AudioStream
 from fileop import AudioFile, FileOp
 from vad import AudioVad
 from mfcc import AudioMFCC
@@ -11,7 +11,7 @@ sample_time    = 0.025
 sample_shift   = 0.010
 
 if __name__ == '__main__':
-    audio_rec  = AudioRecord(sample_rate, sample_channel, sample_width, sample_time)
+    audio_rec  = AudioStream(sample_rate, sample_channel, sample_width, sample_time)
     audio_file = AudioFile('./a.wav', FileOp.W, sample_time)
     audio_file.set_info(sample_rate, sample_channel, sample_width)
     audio_vad  = AudioVad (sample_rate, sample_time, sample_shift)
