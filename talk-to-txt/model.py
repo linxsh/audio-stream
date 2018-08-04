@@ -34,11 +34,12 @@ class MaxPropOptimizer(tf.train.Optimizer):
         return self._apply_dense(grad, var)
 
 class AudioResNet(object):
-    def __init__(self, batch_size = 16, input_size = 20, n_dim = 128, n_blocks = 3):
-        self.batch_size = batch_size
+    def __init__(self, input_size = 20, input_seqs = 512, output_size = 256, n_dim = 128, layer_num = 3):
         self.input_size = input_size
+        self.input_seqs = input_seqs
+        self.output_size = output_size
         self.n_dim = n_dim
-        self.n_blocks = n_blocks
+        self.layer_num = layer_num
 
         tf.reset_default_graph()
         self.build_inputs()
@@ -49,15 +50,15 @@ class AudioResNet(object):
 
     def build_inputs(self):
         with tf.name_scope('inputs'):
-            self.inputs  = tf.placeholder(dtype = tf.float32, shape = [self.batch_size, None, self.input_size])#定义输入格式
-            self.targets = tf.placeholder(dtype = tf.int32,   shape = [self.batch_size, None])#输出格式
+            self.inputs  = tf.placeholder(dtype = tf.float32, shape = [None, self.input_seqs, self.input_size])#定义输入格式
+            self.targets = tf.placeholder(dtype = tf.int32,   shape = [None, self.output_size])#输出格式
             self.seq_len = tf.reduce_sum(tf.cast(tf.not_equal(tf.reduce_sum(self.inputs, reduction_indices = 2), 0.), tf.int32), reduction_indices = 1)
 
     def build_network(self): #定义神经网络
         self.conv1d_index = 0
         self.aconv1d_index = 0
 
-        def conv1d_layer(input_tensor, size, dim, activation, scale,bias):
+        def conv1d_layer(input_tensor, size, dim, activation, scale, bias):
             with tf.variable_scope('conv1d_'+ str(self.conv1d_index)):
                 W = tf.get_variable('W', (size, input_tensor.get_shape().as_list()[-1], dim), dtype=tf.float32, initializer=tf.random_uniform_initializer(minval=-scale, maxval=scale))
                 if bias:
@@ -125,7 +126,7 @@ class AudioResNet(object):
 
         out = conv1d_layer(input_tensor = self.inputs, size = 1, dim = self.n_dim, activation = 'tanh', scale = 0.14, bias = False) #卷积层输出
         skip = 0
-        for _ in range(self.n_blocks):
+        for _ in range(self.layer_num):
             for r in [1, 2, 4, 8, 16]:
                 out, s = residual_block(out, size = 7, rate = r)#根据采样频率发生变化
                 skip += s
@@ -146,9 +147,9 @@ class AudioResNet(object):
         gradient = optimizer.compute_gradients(self.loss, var_list = var_list)
         self.optimizer_op = optimizer.apply_gradients(gradient)
 
-    def train(self, folder, text, batch_size, saver_folder = './speech.module'):
+    def train(self, folder, text, batch_size, saver_folder = './speech.model'):
         print "开始训练:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        audio_batch = AudioBatch(folder, text)
+        audio_batch = AudioBatch(folder, text, self.input_seqs, self.output_size)
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())#初始化变量
             for epoch in range(16):
@@ -165,7 +166,7 @@ class AudioResNet(object):
                     print "第%d次模型保存结果: %s" % (epoch, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         print "结束训练时刻:",time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    def sample(self, mfcc, saver_folder = './speech.module'):
+    def sample(self, mfcc, saver_folder = './speech.model'):
         mfcc = np.transpose(np.expand_dims(mfcc, axis=0), [0, 2, 1])
 
         with tf.Session() as sess:
