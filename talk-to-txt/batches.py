@@ -51,9 +51,7 @@ class AudioBatch(object):
         self.label_max_len  = max_label
         wav_files = get_wave_files(folder)#获取文件名列表
         files,labels = get_wav_label(text, wav_files)#得到标签和对应的语音文件
-        self.n_batch = len(files)//self.batch_size
         print "加载训练样本:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        print "样本数:", len(files)
 
         #词汇表（参考对话、诗词生成）
         all_words = []
@@ -77,15 +75,18 @@ class AudioBatch(object):
             #加载音频文件作为a floating point time series.（可以是wav,mp3等格式）mono=True：signal->mono
             mfcc = np.transpose(librosa.feature.mfcc(wav, sr), [1, 0])#转置特征参数
             if len(mfcc) > self.mfcc_max_len:
-                print "... mfcc  超过最大长度：", len(mfcc), self.mfcc_max_len
+                print "第 %d 样本，语音长度 %d，超过最大长度 %d"%(i, len(mfcc), self.mfcc_max_len)
                 continue
             if len(labels_vector[i]) > self.label_max_len:
-                print "... label 超过最大长度：", len(labels_vector[i]), self.label_max_len
+                print "第 %d 样本，标签长度 %d，超过最大长度 %d"%(i, len(labels_vector[i]), self.label_max_len)
                 continue
             self.mfcc_batches.append(mfcc.tolist())
             self.label_batches.append(labels_vector[i])
             #librosa.feature.mfcc特征提取函数
         print "最长的语音:", self.mfcc_max_len
+        print "语音样本数:", len(self.mfcc_batches)
+        print "标签样本数:", len(self.label_batches)
+        self.n_batch = len(self.mfcc_batches)//self.batch_size
 
     def get_batches(self, batch_size):
         mfcc_batch  = []

@@ -76,8 +76,8 @@ class AudioResNet(object):
                         update_op = [mean_running.assign(mean_running * decay + mean * (1 - decay)), variance_running.assign(variance_running * decay + variance * (1 - decay))]
                         with tf.control_dependencies(update_op):
                             return tf.identity(mean), tf.identity(variance) #返回mean,variance
-                        m, v = tf.cond(tf.Variable(False, trainable=False, collections=[tf.GraphKeys.LOCAL_VARIABLES]), update_running_stat, lambda: (mean_running, variance_running))
-                        out = tf.nn.batch_normalization(out, m, v, beta, gamma, 1e-8)#batch_normalization
+                    m, v = tf.cond(tf.Variable(False, trainable=True), update_running_stat, lambda: (mean_running, variance_running))
+                    out = tf.nn.batch_normalization(out, m, v, beta, gamma, 1e-8)#batch_normalization
                 if activation == 'tanh':
                     out = tf.nn.tanh(out)
                 if activation == 'sigmoid':
@@ -108,8 +108,8 @@ class AudioResNet(object):
                         update_op = [mean_running.assign(mean_running * decay + mean * (1 - decay)), variance_running.assign(variance_running * decay + variance * (1 - decay))]
                         with tf.control_dependencies(update_op):
                             return tf.identity(mean), tf.identity(variance)
-                        m, v = tf.cond(tf.Variable(False, trainable=False, collections=[tf.GraphKeys.LOCAL_VARIABLES]), update_running_stat, lambda: (mean_running, variance_running))
-                        out = tf.nn.batch_normalization(out, m, v, beta, gamma, 1e-8)
+                    m, v = tf.cond(tf.Variable(False, trainable=True), update_running_stat, lambda: (mean_running, variance_running))
+                    out = tf.nn.batch_normalization(out, m, v, beta, gamma, 1e-8)
                 if activation == 'tanh':
                     out = tf.nn.tanh(out)
                 if activation == 'sigmoid':
@@ -167,7 +167,7 @@ class AudioResNet(object):
                     print "第%d次模型保存结果: %s" % (epoch, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
         print "结束训练时刻:",time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    def sample(self, mfcc, saver_folder = './speech.model'):
+    def sample(self, mfcc, saver_folder = './model'):
         mfcc = np.transpose(np.expand_dims(mfcc, axis=0), [0, 2, 1])
 
         with tf.Session() as sess:

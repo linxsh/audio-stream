@@ -3,6 +3,7 @@ import tensorflow as tf
 from model import AudioResNet
 import librosa
 from batches import get_wave_files
+import numpy as np
 
 wav_path = './test'
 if __name__ == '__main__':
@@ -10,5 +11,8 @@ if __name__ == '__main__':
     for wav_file in wav_files:
         wav, sr = librosa.load(wav_file, mono=True)
         mfcc = librosa.feature.mfcc(wav, sr)
+        mfcc = mfcc.tolist()
+        while len(mfcc) < 512:
+            mfcc.append([0]*20)#补一个全0列表
         model = AudioResNet()
-        model.sample(mfcc)
+        model.sample(np.array(mfcc))
