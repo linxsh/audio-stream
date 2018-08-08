@@ -1,18 +1,18 @@
 #coding:utf-8
-import tensorflow as tf
+import time
+from datetime import datetime
 from model import AudioResNet
-import librosa
-from batches import get_wave_files
-import numpy as np
+from batches import AudioBatch
 
-wav_path = './test'
 if __name__ == '__main__':
-    wav_files = get_wave_files(wav_path)
-    for wav_file in wav_files:
-        wav, sr = librosa.load(wav_file, mono=True)
-        mfcc = librosa.feature.mfcc(wav, sr)
-        mfcc = mfcc.tolist()
-        while len(mfcc) < 512:
-            mfcc.append([0]*20)#补一个全0列表
-        model = AudioResNet()
-        model.sample(np.array(mfcc))
+    audio_batch = AudioBatch(folder='train/', text='train/word.txt', batch_size = 1)
+    audio_batch.update_batches()
+    model = AudioResNet()
+    start_time = datetime.now()
+    model.load()
+    print "加载时长: %s" % (datetime.now() - start_time)
+    for batch in range(audio_batch.get_n_batch()):
+        start_time = datetime.now()
+        batches_wavs, batches_labels = audio_batch.get_batches()
+        model.sample(batches_wavs)
+        print "运算时长: %s" % (datetime.now() - start_time)
